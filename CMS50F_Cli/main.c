@@ -16,6 +16,8 @@
 #include <limits.h>
 #include <stdlib.h>
 
+#define DEVICE "/dev/tty.usbserial-0001"
+
 static void print(FILE *stream, time_t *timestamp, spo2_t spo2, bpm_t bpm)
 {
     static char timezone_buffer[7] = {0};
@@ -82,8 +84,8 @@ void die(cms50f_device_t device, cms50f_status_t status) {
 int main(void) {
     printf("CMS50F Cli\n\n");
 
-    cms50f_device_t device = cms50f_device_open("/dev/tty.usbserial-0001");
-    if (!device) { LOG_ERROR("%s", "Could not open device"); return 1; }
+    cms50f_device_t device = cms50f_device_open(DEVICE);
+    if (!device) { LOG_ERROR("Could not open device %s – %s", DEVICE, strerror(errno)); return 1; }
 
     cms50f_status_t status = cms50f_terminal_configure(device);
     if (status != CMS50F_SUCCESS) die(device, status);
