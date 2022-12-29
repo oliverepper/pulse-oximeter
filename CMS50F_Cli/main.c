@@ -113,8 +113,20 @@ void die(cms50f_device_t device, cms50f_status_t status) {
     exit(EXIT_FAILURE);
 }
 
-int main(void) {
-    printf("CMS50F Cli\n\n");
+int main(int argc, char *argv[]) {
+    int option;
+    unsigned force_count = 0;
+    while ((option = getopt(argc, argv, "c:")) != -1)
+    {
+        switch (option)
+        {
+            case 'c':
+                force_count = atoi(optarg);
+                break;
+            default:
+                abort();
+        }
+    }
 
     cms50f_device_t device = cms50f_device_open(DEVICE);
     if (!device) { LOG_ERROR("Could not open device %s – %s", DEVICE, strerror(errno)); return 1; }
@@ -129,9 +141,13 @@ int main(void) {
     if (status != CMS50F_SUCCESS) die(device, status);
 
     int duration = {0};
-    status = cms50f_storage_data_length(device, &duration);
-    if (status != CMS50F_SUCCESS) die(device, status);
-    else printf("Duration: %d\n", duration);
+    if (force_count == 0) {
+        status = cms50f_storage_data_length(device, &duration);
+        if (status != CMS50F_SUCCESS) die(device, status);
+        else printf("Duration: %d\n", duration);
+    } else {
+        duration = force_count;
+    }
 
     time_t starttime = {0};
     status = cms50f_storage_start_time(device, &starttime);
