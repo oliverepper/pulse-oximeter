@@ -163,7 +163,7 @@ static void print_to_gnuplot_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, uns
 
     static char pdf[32] = {0};
     if (strlen(pdf) == 0)
-        strftime(pdf, sizeof(pdf), "%Y%m%d.pdf", localtime(timestamp));
+        strftime(pdf, sizeof(pdf), "%Y%m%d_%H%M%S.pdf", localtime(timestamp));
 
     if (rest == 0) {
         fprintf(out, "min_spo2 = %d\n", min_spo2);
@@ -180,6 +180,7 @@ static void print_to_gnuplot_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, uns
 
         fprintf(out, "%s\n", "set xdata time");
         fprintf(out, "%s\n", "set timefmt \"%Y-%m-%d, %H:%M:%S\"");
+        fprintf(out, "%s\n", "set format x \"%H:%M\"");
         char last_timestamp[32];
         strftime(last_timestamp, sizeof(last_timestamp), "%Y-%m-%d, %H:%M:%S", localtime(timestamp));
         fprintf(out, "set xrange [\"%s\":\"%s\"]\n", first_timestamp, last_timestamp);
