@@ -103,18 +103,11 @@ static void print_to_csv_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, unsigne
 static void print_to_gnuplot_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, unsigned rest)
 {
     static FILE *out = {0};
-    static char plot_commands[64] = {0};
-    if (out == 0) {
-        char fullpath[PATH_MAX];
-        strftime(plot_commands, sizeof(plot_commands), "%Y%m%d%H%M%S_plot_commands.txt", localtime(timestamp));
-        if ((out = fopen(plot_commands, "w")) == NULL) {
-            LOG_ERROR("could not open file: %s", plot_commands);
-        }
-        realpath(plot_commands, fullpath);
-        LOG_DEBUG("file %s opened", fullpath);
-    }
-
-    if (spo2 == 0 || bpm == 0) return;
+    static char plot_commands_filename[64] = {0};
+    static char pdf_filename[32] = {0};
+    static char csv_filename[32] = {0};
+    static char first_timestamp[32] = {0};
+    static char title[32] = {0};
 
     static unsigned min_spo2 = {100};
     static unsigned max_spo2 = {0};
@@ -132,6 +125,25 @@ static void print_to_gnuplot_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, uns
 
     static unsigned last_spo2 = {100};
 
+    if (out == 0) {
+        char fullpath[PATH_MAX];
+        strftime(plot_commands_filename, sizeof(plot_commands_filename), "%Y%m%d%H%M%S_plot_commands.txt", localtime(timestamp));
+        if ((out = fopen(plot_commands_filename, "w")) == NULL) {
+            LOG_ERROR("could not open file: %s", plot_commands_filename);
+        }
+        realpath(plot_commands_filename, fullpath);
+        LOG_DEBUG("file %s opened", fullpath);
+
+        strftime(pdf_filename, sizeof(pdf_filename), "%Y%m%d_%H%M%S.pdf", localtime(timestamp));
+        strftime(csv_filename, sizeof(csv_filename), "%Y%m%d%H%M%S.csv", localtime(timestamp));
+        strftime(first_timestamp, sizeof(first_timestamp), "%Y-%m-%d, %H:%M:%S", localtime(timestamp));
+
+        setlocale(LC_ALL, "de_DE");
+        strftime(title, sizeof(title), "%d %B %Y", localtime(timestamp));
+    }
+
+    if (spo2 == 0 || bpm == 0) return;
+
     if (spo2 < min_spo2) min_spo2 = spo2;
     if (spo2 > max_spo2) max_spo2 = spo2;
     mean_spo2 = mean_spo2 + spo2;
@@ -139,31 +151,13 @@ static void print_to_gnuplot_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, uns
     if (bpm < min_bpm) min_bpm = bpm;
     if (bpm > max_bpm) max_bpm = bpm;
     mean_bpm = mean_bpm + bpm;
-    ++count;
 
     if (spo2 >= 90 && last_spo2 < 90) ++below_90;
     if (spo2 >= 91 && last_spo2 < 91) ++below_91;
     if (spo2 >= 92 && last_spo2 < 92) ++below_92;
-
     last_spo2 = spo2;
 
-    static char first_timestamp[32] = {0};
-    if (strlen(first_timestamp) == 0)
-        strftime(first_timestamp, sizeof(first_timestamp), "%Y-%m-%d, %H:%M:%S", localtime(timestamp));
-
-    static char csv_filename[32] = {0};
-    if (strlen(csv_filename) == 0)
-        strftime(csv_filename, sizeof(csv_filename), "%Y%m%d%H%M%S.csv", localtime(timestamp));
-
-    static char title[32] = {0};
-    if (strlen(title) == 0) {
-        setlocale(LC_ALL, "de_DE");
-        strftime(title, sizeof(title), "%d %B %Y", localtime(timestamp));
-    }
-
-    static char pdf[32] = {0};
-    if (strlen(pdf) == 0)
-        strftime(pdf, sizeof(pdf), "%Y%m%d_%H%M%S.pdf", localtime(timestamp));
+    ++count;
 
     if (rest == 0) {
         fprintf(out, "min_spo2 = %d\n", min_spo2);
@@ -188,7 +182,7 @@ static void print_to_gnuplot_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, uns
         fprintf(out, "%s\n", "set key autotitle columnhead");
         fprintf(out, "%s\n", "set key bottom");
         fprintf(out, "%s\n", "set terminal pdf size 29.7cm,21cm font \"Menlo\"");
-        fprintf(out, "set output '%s'\n", pdf);
+        fprintf(out, "set output '%s'\n", pdf_filename);
         fprintf(out, "%s\n", "set grid ytics");
         fprintf(out, "set title '%s'\n", title);
 
@@ -204,7 +198,7 @@ static void print_to_gnuplot_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, uns
         else LOG_DEBUG("%s", "file closed");
 
         char cmd[128] = {0};
-        snprintf(cmd, sizeof(cmd), "gnuplot < %s", plot_commands);
+        snprintf(cmd, sizeof(cmd), "gnuplot < %s", plot_commands_filename);
         printf("%s\n", cmd);
         system(cmd);
     }
