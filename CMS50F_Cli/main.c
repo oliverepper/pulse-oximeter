@@ -127,7 +127,7 @@ static void print_to_gnuplot_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, uns
 
     if (out == 0) {
         char fullpath[PATH_MAX];
-        strftime(plot_commands_filename, sizeof(plot_commands_filename), "%Y%m%d%H%M%S_plot_commands.txt", localtime(timestamp));
+        strftime(plot_commands_filename, sizeof(plot_commands_filename), "%Y%m%d%H%M%S", localtime(timestamp));
         if ((out = fopen(plot_commands_filename, "w")) == NULL) {
             LOG_ERROR("could not open file: %s", plot_commands_filename);
         }
@@ -222,16 +222,58 @@ void die(cms50f_device_t device, cms50f_status_t status) {
 int main(int argc, char *argv[]) {
     int option;
     unsigned force_count = 0;
-    while ((option = getopt(argc, argv, "c:")) != -1)
+    const char *input_file = NULL;
+    while ((option = getopt(argc, argv, "c:i:")) != -1)
     {
         switch (option)
         {
             case 'c':
                 force_count = atoi(optarg);
                 break;
+            case 'i':
+                input_file = optarg;
+                break;
             default:
                 abort();
         }
+    }
+
+    if (input_file) {
+        printf("Loading data from file: %s\n", input_file);
+
+        FILE *in = {0};
+        char fullpath[PATH_MAX];
+
+        if ((in = fopen(input_file, "r")) == NULL) {
+            LOG_ERROR("could not open file: %s", input_file);
+        }
+        realpath(input_file, fullpath);
+        LOG_DEBUG("file %s opened", fullpath);
+
+        unsigned line_count = {0};
+        ssize_t read;
+        char *line;
+        size_t len;
+        while ((read = getline(&line, &len, in)) != -1) ++line_count;
+
+        printf("line_count: %u\n", line_count);
+
+        fseek(in, 0, SEEK_SET);
+
+        struct tm info;
+        int spo2, bpm;
+        while (line_count > 0) {
+            fscanf(in, "%d-%d-%dT%d:%d:%d+01:00, spo: %d, bpm: %d", &info.tm_year, &info.tm_mon, &info.tm_mday, &info.tm_hour, &info.tm_min, &info.tm_sec, &spo2, &bpm);
+            info.tm_year = info.tm_year - 1900;
+            info.tm_mon = info.tm_mon - 1;
+            time_t time = mktime(&info);
+            print_to_csv_file(&time, spo2, bpm, --line_count);
+            print_to_gnuplot_file(&time, spo2, bpm, line_count);
+        }
+
+        printf("Done");
+
+        return 0;
     }
 
     cms50f_device_t device = cms50f_device_open(DEVICE);
