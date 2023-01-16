@@ -121,13 +121,16 @@ static void print_to_gnuplot_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, uns
     static unsigned below_91 = {0};
     static unsigned below_92 = {0};
 
-    static unsigned count = {0};
+    static unsigned count_below_90 = {0};
+    static unsigned count_below_91 = {0};
+    static unsigned count_below_92 = {0};
 
+    static unsigned count = {0};
     static unsigned last_spo2 = {100};
 
     if (out == 0) {
         char fullpath[PATH_MAX];
-        strftime(plot_commands_filename, sizeof(plot_commands_filename), "%Y%m%d%H%M%S", localtime(timestamp));
+        strftime(plot_commands_filename, sizeof(plot_commands_filename), "%Y%m%d%H%M%S_plot_commands.txt", localtime(timestamp));
         if ((out = fopen(plot_commands_filename, "w")) == NULL) {
             LOG_ERROR("could not open file: %s", plot_commands_filename);
         }
@@ -155,8 +158,12 @@ static void print_to_gnuplot_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, uns
     if (spo2 >= 90 && last_spo2 < 90) ++below_90;
     if (spo2 >= 91 && last_spo2 < 91) ++below_91;
     if (spo2 >= 92 && last_spo2 < 92) ++below_92;
-    last_spo2 = spo2;
 
+    if (spo2 < 90) ++count_below_90;
+    if (spo2 < 91) ++count_below_91;
+    if (spo2 < 92) ++count_below_92;
+
+    last_spo2 = spo2;
     ++count;
 
     if (rest == 0) {
@@ -172,6 +179,11 @@ static void print_to_gnuplot_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, uns
         fprintf(out, "below_91 = %d\n", below_91);
         fprintf(out, "below_92 = %d\n\n", below_92);
 
+        fprintf(out, "count_below_90 = %d\n\n", count_below_90);
+        fprintf(out, "count_below_91 = %d\n\n", count_below_91);
+        fprintf(out, "count_below_92 = %d\n\n", count_below_92);
+
+        fprintf(out, "%s\n", "set tmargin 10");
         fprintf(out, "%s\n", "set xdata time");
         fprintf(out, "%s\n", "set timefmt \"%Y-%m-%d, %H:%M:%S\"");
         fprintf(out, "%s\n", "set format x \"%H:%M\"");
@@ -184,12 +196,12 @@ static void print_to_gnuplot_file(time_t *timestamp, spo2_t spo2, bpm_t bpm, uns
         fprintf(out, "%s\n", "set terminal pdf size 29.7cm,21cm font \"Menlo\"");
         fprintf(out, "set output '%s'\n", pdf_filename);
         fprintf(out, "%s\n", "set grid ytics");
-        fprintf(out, "set title '%s'\n", title);
+        fprintf(out, "set title '%s – Oliver Epper'\n", title);
 
         fprintf(out, "%s\n", "set label sprintf(\" min SpO2 = %d\\n max SpO2 = %d\\nmean SpO2 = %d\", min_spo2, max_spo2, mean_spo2) at character 10,5\n");
         fprintf(out, "%s\n", "set label sprintf(\" min BPM = %d\\n max BPM = %d\\nmean BPM = %d\", min_bpm, max_bpm, mean_bpm) at character 30,5");
 
-        fprintf(out, "%s\n", "set label sprintf(\"<90 = %d\\n<91 = %d\\n<92 = %d\", below_90, below_91, below_92) at character 50,5");
+        fprintf(out, "%s\n", "set label sprintf(\"SpO2 <90 = %2dx (gesamt: %3ds)\\nSpO2 <91 = %2dx (gesamt: %3ds)\\nSpO2 <92 = %2dx (gesamt: %3ds)\", below_90, count_below_90, below_91, count_below_91, below_92, count_below_92) at character 50,5");
 
         fprintf(out, "plot '%s' %s\n", csv_filename, "u 1:($3 == 0 ? NaN : $3) w l t 'SpO2' lt rgb \"blue\" lw 0, '' u 1:($4 == 0 ? NaN : $4) w l t 'BPM' lt rgb \"red\" lw 0");
 
