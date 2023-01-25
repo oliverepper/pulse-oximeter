@@ -134,9 +134,7 @@ cms50f_status_t cms50f_terminal_configure(cms50f_device_t device)
     LOG_DEBUG("trying to configure device %s", device-> name);
 
     struct termios cfg  = {0};
-    cfg.c_cflag         = CS8 | CREAD | CLOCAL;
-    cfg.c_cc[VMIN]      = 1;
-    cfg.c_cc[VTIME]     = 1;
+    cfg.c_cflag         = CS8 | CREAD | CLOCAL | HUPCL;
 
     if (cfsetospeed(&cfg, B115200) < 0 || cfsetispeed(&cfg, B115200) < 0) {
         LOG_DEBUG("Could not set baudrate for device: %s", device->name);
